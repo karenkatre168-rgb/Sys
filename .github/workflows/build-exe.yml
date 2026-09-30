@@ -1,0 +1,64 @@
+name: Creer ControleTissu.exe
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 0 - Verifier les fichiers du depot
+        shell: pwsh
+        run: |
+          Get-ChildItem -Force | Format-Table Name, Length
+          foreach ($f in @("logiciel.py","serveur.py","detecteur_defaut_tissu.py","requirements.txt","icon.ico","templates/dashboard.html")) {
+            if (-not (Test-Path $f)) { Write-Error "FICHIER MANQUANT a la racine du depot : $f"; exit 1 }
+          }
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 1 - Installer les dependances
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip list
+
+      - name: 2 - Tester que le code s'importe
+        shell: pwsh
+        run: |
+          python -c "import cv2, numpy, flask, webview; import serveur; print('imports OK')"
+
+      - name: 3 - Construire le .exe
+        shell: pwsh
+        run: |
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name ControleTissu --icon icon.ico --add-data "templates;templates" --collect-submodules webview logiciel.py
+
+      - name: 4 - Verifier le .exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/ControleTissu.exe)) { Write-Error "ControleTissu.exe introuvable"; exit 1 }
+          Get-Item dist/ControleTissu.exe | Format-List Name, Length
+
+      - name: Recuperer le .exe (onglet Actions > Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControleTissu
+          path: dist/ControleTissu.exe
+          if-no-files-found: error
+
+      - name: Publier dans Releases (si etiquette v1.0, v1.1...)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ControleTissu.exe
