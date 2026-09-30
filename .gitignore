@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+journal.log
+historique.jsonl
+images_recues/*
+images_recadrees/*
+images_annotees/*
+!images_recues/.gitkeep
+!images_recadrees/.gitkeep
+!images_annotees/.gitkeep
